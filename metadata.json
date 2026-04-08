@@ -1,0 +1,5 @@
+{
+  "name": "SyncMaster - OS Process Synchronization",
+  "description": "An interactive educational platform for learning OS process synchronization algorithms including Mutex, Semaphores, Peterson's Algorithm, and more.",
+  "requestFramePermissions": []
+}
