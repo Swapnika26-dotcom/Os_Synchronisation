@@ -31,14 +31,14 @@ export function Login({ onLogin }: LoginProps) {
           </div>
           <h1 className="text-4xl font-black tracking-tight">Sync<span className="text-muted-foreground">Master</span></h1>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-[280px] mx-auto">
-            Your high-performance synchronization learning environment.
+            Create an account to track your progress and master process synchronization.
           </p>
         </div>
 
         <div className="space-y-4">
            {[
-             { icon: Sparkles, text: "Personalized Learning Path" },
-             { icon: Zap, text: "Real-time Progress Tracking" },
+             { icon: Sparkles, text: "Personalized Learning Profile" },
+             { icon: Zap, text: "Real-time Growth Analytics" },
            ].map((item, i) => (
              <div key={i} className="flex items-center gap-4 p-4 bg-secondary/50 rounded-2xl border border-border/50">
                 <item.icon className="w-5 h-5 text-primary" />
@@ -52,7 +52,7 @@ export function Login({ onLogin }: LoginProps) {
           className="w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground py-5 rounded-[1.5rem] font-bold text-lg hover:opacity-90 transition-all shadow-xl shadow-primary/20 active:scale-[0.98]"
         >
           <LogIn className="w-6 h-6" />
-          Continue with Google
+          Sign Up / Log In
         </button>
 
         <p className="text-center text-[10px] text-muted-foreground uppercase font-bold tracking-widest">

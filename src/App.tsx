@@ -67,7 +67,9 @@ export default function App() {
       <footer className="border-t border-border py-8 mt-auto">
         <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
           <p>© 2026 SyncMaster - OS Process Synchronization Simulator</p>
-          <p className="mt-2 font-mono text-xs">Designed for educational purposes.</p>
+          <p className="mt-2 text-xs">
+            Built by <span className="font-bold text-foreground">swapnikakrishnajakka</span> and guided by <span className="font-bold text-foreground">dr rajulu</span>
+          </p>
         </div>
       </footer>
     </div>

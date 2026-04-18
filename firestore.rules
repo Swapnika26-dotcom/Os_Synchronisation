@@ -43,7 +43,8 @@ service cloud.firestore {
                       incoming().totalPoints >= existing().totalPoints &&
                       // Action-based updates using diff()
                       incoming().diff(existing()).affectedKeys().hasOnly([
-                        'displayName', 'photoURL', 'totalPoints', 'rank', 'rating', 'streak', 'lastActive'
+                        'displayName', 'photoURL', 'totalPoints', 'rank', 'rating', 'streak', 'lastActive', 
+                        'currentQuizIndex', 'currentQuizScore'
                       ]);
     }
 

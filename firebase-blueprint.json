@@ -13,6 +13,8 @@
         "rank": { "type": "string", "enum": ["Novice", "Adept", "Expert", "Master"] },
         "rating": { "type": "integer" },
         "streak": { "type": "integer" },
+        "currentQuizIndex": { "type": "integer" },
+        "currentQuizScore": { "type": "integer" },
         "lastActive": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

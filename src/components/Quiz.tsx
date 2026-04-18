@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QUIZ_QUESTIONS } from '../data/quizQuestions';
 import { cn } from '../lib/utils';
@@ -10,11 +10,15 @@ import {
   RotateCcw,
   GraduationCap,
   BrainCircuit,
-  Award
+  Award,
+  FastForward,
+  Info
 } from 'lucide-react';
 
-import { auth, updateUserProgress } from '../services/firebase';
+import { auth, db, updateUserProgress, saveQuizProgress } from '../services/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { Terminal } from './Terminal';
 
 export function Quiz() {
   const [user] = useAuthState(auth);
@@ -23,6 +27,30 @@ export function Quiz() {
   const [showResult, setShowResult] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(user ? true : false);
+
+  // Resume progress from Firestore
+  useEffect(() => {
+    async function resumeProgress() {
+      if (!user) return;
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.currentQuizIndex && data.currentQuizIndex < QUIZ_QUESTIONS.length) {
+            setCurrentIdx(data.currentQuizIndex);
+            setScore(data.currentQuizScore || 0);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to resume progress:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    resumeProgress();
+  }, [user]);
 
   const handleAnswer = (optionIdx: number) => {
     if (selectedOption !== null) return;
@@ -37,26 +65,67 @@ export function Quiz() {
   };
 
   const nextQuestion = async () => {
-    if (currentIdx < QUIZ_QUESTIONS.length - 1) {
-      setCurrentIdx(prev => prev + 1);
+    const nextIdx = currentIdx + 1;
+    if (nextIdx < QUIZ_QUESTIONS.length) {
+      setCurrentIdx(nextIdx);
       setSelectedOption(null);
       setIsCorrect(null);
+      // Persist progress to DB
+      if (user) {
+        await saveQuizProgress(user.uid, nextIdx, score);
+      }
     } else {
       setShowResult(true);
-      // PERSIST PROGRESS
+      // Final points update
       if (user && score > 0) {
         await updateUserProgress(user.uid, score, "quiz");
+        await saveQuizProgress(user.uid, 0, 0); // Reset progress after completion
       }
     }
   };
 
-  const resetQuiz = () => {
+  const skipQuestion = async () => {
+    const nextIdx = currentIdx + 1;
+    if (nextIdx < QUIZ_QUESTIONS.length) {
+      setCurrentIdx(nextIdx);
+      setSelectedOption(null);
+      setIsCorrect(null);
+      if (user) {
+        await saveQuizProgress(user.uid, nextIdx, score);
+      }
+    } else {
+      setShowResult(true);
+    }
+  };
+
+  const resetQuiz = async () => {
     setCurrentIdx(0);
     setScore(0);
     setShowResult(false);
     setSelectedOption(null);
     setIsCorrect(null);
+    if (user) {
+      await saveQuizProgress(user.uid, 0, 0);
+    }
   };
+
+  const handleProgramRun = (code: string) => {
+    // Basic logic: compare with expectedOutput for learning purposes
+    const expected = QUIZ_QUESTIONS[currentIdx].expectedOutput;
+    const isActuallyCorrect = code.toLowerCase().includes(expected?.toLowerCase() || "");
+    
+    setSelectedOption(99); // dummy to block double click
+    setIsCorrect(isActuallyCorrect);
+    if (isActuallyCorrect) {
+      setScore(prev => prev + 5); // Coding challenges worth more
+    }
+  };
+
+  if (loading) return (
+     <div className="min-h-[400px] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+     </div>
+  );
 
   const question = QUIZ_QUESTIONS[currentIdx];
   const progress = ((currentIdx + 1) / QUIZ_QUESTIONS.length) * 100;
@@ -166,51 +235,91 @@ export function Quiz() {
               {question.question}
             </h2>
 
-            <div className="space-y-4 relative">
-              {question.options.map((option, idx) => {
-                const isSelected = selectedOption === idx;
-                const showCorrect = selectedOption !== null && idx === question.answer;
-                const showWrong = isSelected && !isCorrect;
+            {question.type === 'programming' ? (
+              <div className="space-y-6 relative">
+                 <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-muted-foreground">
+                    <Info className="w-4 h-4 text-primary" />
+                    <span>Type your solution in the terminal and click Execute to verify.</span>
+                 </div>
+                 <Terminal 
+                   boilerplate={question.boilerplate || ""} 
+                   onRun={handleProgramRun} 
+                 />
+                 {selectedOption === 99 && (
+                   <motion.div 
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     className={cn(
+                       "p-4 rounded-xl flex items-center gap-3",
+                       isCorrect ? "bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive"
+                     )}
+                   >
+                     {isCorrect ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                     <span className="text-sm font-bold">
+                       {isCorrect ? "Correct! Well implemented." : "Not quite. Check your logic and try Execute again."}
+                     </span>
+                   </motion.div>
+                 )}
+              </div>
+            ) : (
+              <div className="space-y-4 relative">
+                {question.options.map((option, idx) => {
+                  const isSelected = selectedOption === idx;
+                  const showCorrect = selectedOption !== null && idx === question.answer;
+                  const showWrong = isSelected && !isCorrect;
 
-                return (
-                  <button
-                    key={idx}
-                    disabled={selectedOption !== null}
-                    onClick={() => handleAnswer(idx)}
-                    className={cn(
-                      "w-full text-left p-5 rounded-2xl border-2 transition-all flex items-center justify-between group",
-                      selectedOption === null 
-                        ? "border-border hover:border-primary/50 hover:bg-accent" 
-                        : showCorrect
-                        ? "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
-                        : showWrong
-                        ? "border-destructive bg-destructive/10 text-destructive"
-                        : "border-border opacity-50"
-                    )}
-                  >
-                    <span className="font-semibold">{option}</span>
-                    {showCorrect && <CheckCircle2 className="w-5 h-5" />}
-                    {showWrong && <XCircle className="w-5 h-5" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedOption !== null && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-10"
-              >
-                <button
-                  onClick={nextQuestion}
-                  className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-xl shadow-primary/20"
-                >
-                  {currentIdx === QUIZ_QUESTIONS.length - 1 ? "Finish Quiz" : "Next Question"}
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </motion.div>
+                  return (
+                    <button
+                      key={idx}
+                      disabled={selectedOption !== null}
+                      onClick={() => handleAnswer(idx)}
+                      className={cn(
+                        "w-full text-left p-5 rounded-2xl border-2 transition-all flex items-center justify-between group",
+                        selectedOption === null 
+                          ? "border-border hover:border-primary/50 hover:bg-accent" 
+                          : showCorrect
+                          ? "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
+                          : showWrong
+                          ? "border-destructive bg-destructive/10 text-destructive"
+                          : "border-border opacity-50"
+                      )}
+                    >
+                      <span className="font-semibold">{option}</span>
+                      {showCorrect && <CheckCircle2 className="w-5 h-5" />}
+                      {showWrong && <XCircle className="w-5 h-5" />}
+                    </button>
+                  );
+                })}
+              </div>
             )}
+
+            <div className="flex flex-col sm:flex-row gap-4 mt-10">
+              {selectedOption === null && (
+                <button
+                  onClick={skipQuestion}
+                  className="flex-1 py-4 bg-secondary text-secondary-foreground border border-border rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-accent transition-all"
+                >
+                  <FastForward className="w-5 h-5" />
+                  Skip Question
+                </button>
+              )}
+
+              {selectedOption !== null && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex-1"
+                >
+                  <button
+                    onClick={nextQuestion}
+                    className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-xl shadow-primary/20"
+                  >
+                    {currentIdx === QUIZ_QUESTIONS.length - 1 ? "Finish Quiz" : "Next Question"}
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

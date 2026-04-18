@@ -3,6 +3,10 @@ export interface Question {
   question: string;
   options: string[];
   answer: number;
+  type?: 'multiple-choice' | 'programming';
+  boilerplate?: string;
+  expectedOutput?: string;
+  hint?: string;
 }
 
 export const QUIZ_QUESTIONS: Question[] = [
@@ -335,5 +339,23 @@ export const QUIZ_QUESTIONS: Question[] = [
     question: "Counting semaphores are more general than binary semaphores.",
     options: ["True", "False"],
     answer: 0
+  },
+  {
+    id: 56,
+    question: "Complete the pseudocode for Peterson's Algorithm Entry Section. (Enter exact missing line)",
+    options: [],
+    answer: 0,
+    type: "programming",
+    boilerplate: "// Entry Section for Process i\nflag[i] = true;\nturn = j;\nwhile (flag[j] && turn == j) {\n  // What goes here for busy wait?\n}",
+    expectedOutput: "// empty"
+  },
+  {
+    id: 57,
+    question: "Implement the 'signal' (V) operation for a binary semaphore named 'mutex'.",
+    options: [],
+    answer: 0,
+    type: "programming",
+    boilerplate: "void signal(Semaphore mutex) {\n  // Write logic to release mutex\n}",
+    expectedOutput: "mutex = 1"
   }
 ];
