@@ -3,9 +3,10 @@ import { Play, ArrowRight, Shield, Zap, Layers } from 'lucide-react';
 
 interface HeroProps {
   onStart: () => void;
+  onExplore: () => void;
 }
 
-export function Hero({ onStart }: HeroProps) {
+export function Hero({ onStart, onExplore }: HeroProps) {
   return (
     <div className="relative overflow-hidden py-12 sm:py-24">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_50rem_at_top,theme(colors.primary/10),transparent)]" />
@@ -36,9 +37,10 @@ export function Hero({ onStart }: HeroProps) {
               Launch Simulator
             </button>
             <button
+              onClick={onExplore}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-secondary text-secondary-foreground rounded-xl font-bold text-lg hover:bg-accent transition-all"
             >
-              View Documentation
+              Explore Concepts
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

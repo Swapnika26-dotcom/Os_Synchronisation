@@ -14,22 +14,28 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AlgorithmType, SimulationState, Process } from '../types';
-import { COLORS } from '../constants';
+import { COLORS, ALGORITHMS } from '../constants';
+import { auth, updateUserProgress } from '../services/firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 export function Simulator() {
+  const [user] = useAuthState(auth);
   const [algo, setAlgo] = useState<AlgorithmType>('mutex');
   const [processCount, setProcessCount] = useState(4);
   const [burstTime, setBurstTime] = useState(3);
   const [speed, setSpeed] = useState(1);
+  const [targetExecs, setTargetExecs] = useState(1);
   
   const [state, setState] = useState<SimulationState>({
     time: 0,
     processes: [],
     queue: [],
     criticalSection: [],
+    ganttData: [],
     logs: ['Simulation initialized.'],
     isRunning: false,
     isPaused: false,
+    isFinished: false,
     speed: 1,
     algorithm: 'mutex',
     stats: {
@@ -50,7 +56,9 @@ export function Simulator() {
       waitTime: 0,
       burstTime: burstTime + (Math.random() * 2 - 1),
       remainingTime: 0,
-      progress: 0
+      progress: 0,
+      completedExecutions: 0,
+      targetExecutions: targetExecs
     }));
 
     setState(prev => ({
@@ -59,9 +67,11 @@ export function Simulator() {
       processes: newProcesses,
       queue: [],
       criticalSection: [],
-      logs: [`Initialized ${algo} simulation with ${count} processes.`],
+      ganttData: [],
+      logs: [`Initialized ${algo} simulation with ${count} processes. Each will execute ${targetExecs} time(s).`],
       isRunning: false,
       isPaused: false,
+      isFinished: false,
       algorithm: algo,
       stats: {
         totalWaitTime: 0,
@@ -69,7 +79,7 @@ export function Simulator() {
         csEntries: 0
       }
     }));
-  }, [algo, processCount, burstTime]);
+  }, [algo, processCount, burstTime, targetExecs]);
 
   useEffect(() => {
     initProcesses();
@@ -90,7 +100,15 @@ export function Simulator() {
       let nextProcesses = [...prev.processes];
       let nextQueue = [...prev.queue];
       let nextCS = [...prev.criticalSection];
+      let nextGantt = [...prev.ganttData];
       let nextStats = { ...prev.stats };
+      let logs = [...prev.logs];
+
+      // Check if finished
+      const allFinished = nextProcesses.every(p => p.state === 'finished');
+      if (allFinished) {
+        return { ...prev, isRunning: false, isFinished: true };
+      }
 
       // 1. Update existing processes
       nextProcesses = nextProcesses.map(p => {
@@ -106,11 +124,13 @@ export function Simulator() {
       });
 
       // 2. Handle state transitions
-      // Randomly make idle processes request CS
       nextProcesses = nextProcesses.map(p => {
-        if (p.state === 'idle' && Math.random() < 0.02) {
-          nextQueue.push(p.id);
-          return { ...p, state: 'requesting' };
+        if (p.state === 'idle' && p.completedExecutions < p.targetExecutions) {
+          // Add small delay or probabilistic request
+          if (Math.random() < 0.05) {
+            nextQueue.push(p.id);
+            return { ...p, state: 'requesting' };
+          }
         }
         if (p.state === 'requesting') {
           return { ...p, state: 'waiting' };
@@ -124,17 +144,26 @@ export function Simulator() {
           return nextCS.length === 0;
         }
         if (prev.algorithm === 'semaphore') {
-          return nextCS.length < 2; // Let's say counting semaphore of 2
+          return nextCS.length < 2; 
         }
         return nextCS.length === 0;
       };
 
       if (nextQueue.length > 0 && canEnterCS()) {
         const nextId = nextQueue[0];
-        // Peterson's check (simplified visual logic)
-        // In reality Peterson's is decentralized, but here we simulate the result
         nextQueue.shift();
         nextCS.push(nextId);
+        
+        const proc = nextProcesses.find(p => p.id === nextId);
+        if (proc) {
+          nextGantt.push({
+            processId: nextId,
+            start: prev.time,
+            end: prev.time, // updated on finish
+            color: proc.color
+          });
+        }
+
         nextProcesses = nextProcesses.map(p => 
           p.id === nextId ? { ...p, state: 'running', remainingTime: p.burstTime, progress: 0 } : p
         );
@@ -146,7 +175,18 @@ export function Simulator() {
       nextProcesses = nextProcesses.map(p => {
         if (p.state === 'running' && p.remainingTime <= 0) {
           finishedIds.push(p.id);
-          return { ...p, state: 'idle', progress: 0, burstTime: burstTime + (Math.random() * 2 - 1) };
+          const nextCompleted = p.completedExecutions + 1;
+          
+          // Update gantt entry
+          const lastEntryIdx = nextGantt.length - 1 - [...nextGantt].reverse().findIndex(e => e.processId === p.id);
+          if (lastEntryIdx !== -1) {
+            nextGantt[lastEntryIdx] = { ...nextGantt[lastEntryIdx], end: prev.time };
+          }
+
+          if (nextCompleted >= p.targetExecutions) {
+            return { ...p, state: 'finished', completedExecutions: nextCompleted, progress: 0 };
+          }
+          return { ...p, state: 'idle', completedExecutions: nextCompleted, progress: 0, burstTime: burstTime + (Math.random() * 2 - 1) };
         }
         return p;
       });
@@ -156,13 +196,19 @@ export function Simulator() {
         nextStats.completedCount += finishedIds.length;
       }
 
+      const trulyFinished = nextProcesses.every(p => p.state === 'finished');
+
       return {
         ...prev,
         time: nextTime,
         processes: nextProcesses,
         queue: nextQueue,
         criticalSection: nextCS,
-        stats: nextStats
+        ganttData: nextGantt,
+        stats: nextStats,
+        logs: trulyFinished ? ["Simulation sequence completed.", ...logs].slice(0, 50) : logs,
+        isRunning: !trulyFinished,
+        isFinished: trulyFinished
       };
     });
   }, [speed, burstTime]);
@@ -187,6 +233,12 @@ export function Simulator() {
     setState(prev => ({ ...prev, isPaused: !prev.isPaused }));
     addLog(state.isPaused ? "Simulation resumed." : "Simulation paused.");
   };
+
+  useEffect(() => {
+    if (state.isFinished && user) {
+      updateUserProgress(user.uid, 50, "simulator");
+    }
+  }, [state.isFinished, user]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 py-6">
@@ -238,6 +290,19 @@ export function Simulator() {
                 type="range" min="1" max="10" 
                 value={burstTime}
                 onChange={(e) => setBurstTime(parseInt(e.target.value))}
+                className="w-full accent-primary"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <label className="text-xs font-bold text-muted-foreground uppercase">Target Executions</label>
+                <span className="text-xs font-bold">{targetExecs}</span>
+              </div>
+              <input 
+                type="range" min="1" max="5" 
+                value={targetExecs}
+                onChange={(e) => setTargetExecs(parseInt(e.target.value))}
                 className="w-full accent-primary"
               />
             </div>
@@ -384,7 +449,7 @@ export function Simulator() {
                       <div 
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 border-background shadow-xl flex items-center justify-center text-white font-bold transition-all duration-300",
-                          isRunning && "ring-4 ring-green-500/30",
+                          p.state === 'finished' ? "opacity-50 grayscale" : (isRunning && "ring-4 ring-green-500/30"),
                           isWaiting && "ring-4 ring-amber-500/30"
                         )}
                         style={{ backgroundColor: p.color }}
@@ -414,7 +479,8 @@ export function Simulator() {
                       <div className={cn(
                         "absolute -bottom-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[8px] font-bold uppercase whitespace-nowrap",
                         isRunning ? "bg-green-500 text-white" : 
-                        isWaiting ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                        isWaiting ? "bg-amber-500 text-white" : 
+                        p.state === 'finished' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       )}>
                         {p.state}
                       </div>
@@ -425,6 +491,105 @@ export function Simulator() {
             </div>
           </div>
         </div>
+
+        {/* Final Gantt Chart Summary below the visualization */}
+        <AnimatePresence>
+          {state.isFinished && (
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-card border border-border rounded-3xl p-8 shadow-sm space-y-8 overflow-hidden"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight">Simulation Results</h2>
+                  <p className="text-sm text-muted-foreground">Execution summary for {state.algorithm}</p>
+                </div>
+                <button 
+                  onClick={initProcesses}
+                  className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm shadow-xl shadow-primary/20 hover:opacity-90 transition-all"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  Restart Simulation
+                </button>
+              </div>
+              
+              <div className="overflow-x-auto pr-2 custom-scrollbar">
+                <div className="min-w-[600px] space-y-4">
+                  {state.processes.map(p => {
+                    const pEntries = state.ganttData.filter(e => e.processId === p.id);
+                    return (
+                      <div key={p.id} className="relative h-14 flex items-center">
+                        <div className="w-20 pr-4 flex items-center gap-2 sticky left-0 z-10 bg-card">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-lg" style={{ backgroundColor: p.color }}>
+                            P{p.id}
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 h-10 bg-secondary/30 rounded-xl relative overflow-hidden border border-border/50">
+                           {/* Grid Lines */}
+                           {Array.from({ length: 11 }).map((_, i) => (
+                             <div key={i} className="absolute h-full w-px bg-border/20" style={{ left: `${i * 10}%` }} />
+                           ))}
+                           
+                           {pEntries.map((entry, idx) => {
+                             const left = (entry.start / state.time) * 100;
+                             const width = ((entry.end - entry.start) / state.time) * 100;
+                             return (
+                               <motion.div
+                                 key={idx}
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${width}%` }}
+                                 className="absolute h-8 top-1 rounded-lg shadow-sm flex items-center justify-center overflow-hidden hover:brightness-110 transition-all border border-white/20"
+                                 style={{ 
+                                   left: `${left}%`, 
+                                   backgroundColor: p.color,
+                                   minWidth: '4px' 
+                                 }}
+                               >
+                                  <span className="text-[9px] font-bold text-white px-1 whitespace-nowrap drop-shadow-md">
+                                      {(entry.end - entry.start).toFixed(1)}s
+                                  </span>
+                               </motion.div>
+                             );
+                           })}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  <div className="flex pt-6 ml-20 border-t border-border mt-4">
+                    {Array.from({ length: 11 }).map((_, i) => (
+                      <div key={i} className="flex-1 text-[10px] font-mono text-muted-foreground relative">
+                        <div className="absolute left-0 -top-1 w-px h-3 bg-border" />
+                        <span className="-ml-4">{(i * state.time / 10).toFixed(1)}s</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <div className="p-4 bg-secondary/50 rounded-2xl border border-border">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Total Wait Time</span>
+                      <span className="text-xl font-bold">{(state.processes.reduce((acc, p) => acc + p.waitTime, 0)).toFixed(1)}s</span>
+                  </div>
+                  <div className="p-4 bg-secondary/50 rounded-2xl border border-border">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Avg Waiting</span>
+                      <span className="text-xl font-bold">{(state.processes.reduce((acc, p) => acc + p.waitTime, 0) / state.processes.length).toFixed(2)}s</span>
+                  </div>
+                  <div className="p-4 bg-secondary/50 rounded-2xl border border-border">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Utilization</span>
+                      <span className="text-xl font-bold">{(state.ganttData.reduce((acc, e) => acc + (e.end - e.start), 0) / state.time * 100 / (state.algorithm === 'semaphore' ? 2 : 1)).toFixed(1)}%</span>
+                  </div>
+                  <div className="p-4 bg-secondary/50 rounded-2xl border border-border">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Throughput</span>
+                      <span className="text-xl font-bold">{(state.stats.completedCount / state.time).toFixed(2)}/s</span>
+                  </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Logs & Queue */}

@@ -4,11 +4,18 @@ import { Hero } from './components/Hero';
 import { Concepts } from './components/Concepts';
 import { Simulator } from './components/Simulator';
 import { Analytics } from './components/Analytics';
+import { Quiz } from './components/Quiz';
 import { cn } from './lib/utils';
 
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from './services/firebase';
+import { Login } from './components/Login';
+import { Profile } from './components/Profile';
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'concepts' | 'simulator' | 'analytics'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'concepts' | 'simulator' | 'analytics' | 'quiz' | 'profile'>('home');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [user, loading] = useAuthState(auth);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -20,8 +27,22 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  if (loading) return (
+    <div className={cn("min-h-screen flex items-center justify-center bg-background", theme ==='dark' ? 'dark' : '')}>
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!user) {
+    return (
+      <div className={cn("min-h-screen bg-background text-foreground transition-colors duration-300", theme ==='dark' ? 'dark' : '')}>
+        <Login onLogin={() => {}} />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+    <div className={cn("min-h-screen bg-background text-foreground transition-colors duration-300 selection:bg-primary selection:text-primary-foreground", theme ==='dark' ? 'dark' : '')}>
       <Navbar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -30,10 +51,17 @@ export default function App() {
       />
       
       <main className="container mx-auto px-4 pt-20 pb-12">
-        {activeTab === 'home' && <Hero onStart={() => setActiveTab('simulator')} />}
+        {activeTab === 'home' && (
+          <Hero 
+            onStart={() => setActiveTab('simulator')} 
+            onExplore={() => setActiveTab('concepts')} 
+          />
+        )}
         {activeTab === 'concepts' && <Concepts />}
         {activeTab === 'simulator' && <Simulator />}
         {activeTab === 'analytics' && <Analytics />}
+        {activeTab === 'quiz' && <Quiz />}
+        {activeTab === 'profile' && <Profile />}
       </main>
 
       <footer className="border-t border-border py-8 mt-auto">

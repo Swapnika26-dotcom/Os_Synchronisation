@@ -16,6 +16,15 @@ export interface Process {
   burstTime: number;
   remainingTime: number;
   progress: number;
+  completedExecutions: number;
+  targetExecutions: number;
+}
+
+export interface GanttEntry {
+  processId: number;
+  start: number;
+  end: number;
+  color: string;
 }
 
 export interface SimulationState {
@@ -23,9 +32,11 @@ export interface SimulationState {
   processes: Process[];
   queue: number[];
   criticalSection: number[];
+  ganttData: GanttEntry[];
   logs: string[];
   isRunning: boolean;
   isPaused: boolean;
+  isFinished: boolean;
   speed: number;
   algorithm: AlgorithmType;
   stats: {
