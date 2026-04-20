@@ -5,6 +5,7 @@ import { Concepts } from './components/Concepts';
 import { Simulator } from './components/Simulator';
 import { Analytics } from './components/Analytics';
 import { Quiz } from './components/Quiz';
+import { Playground } from './components/Playground';
 import { cn } from './lib/utils';
 
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -13,7 +14,7 @@ import { Login } from './components/Login';
 import { Profile } from './components/Profile';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'concepts' | 'simulator' | 'analytics' | 'quiz' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'concepts' | 'simulator' | 'playground' | 'analytics' | 'quiz' | 'profile'>('home');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [user, loading] = useAuthState(auth);
 
@@ -59,6 +60,7 @@ export default function App() {
         )}
         {activeTab === 'concepts' && <Concepts />}
         {activeTab === 'simulator' && <Simulator />}
+        {activeTab === 'playground' && <Playground />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'quiz' && <Quiz />}
         {activeTab === 'profile' && <Profile />}

@@ -100,7 +100,7 @@ export const updateUserProgress = async (userId: string, points: number, type: "
 
     await updateDoc(userRef, {
       totalPoints: increment(points),
-      rating: increment(points / 2),
+      rating: increment(Math.floor(points / 2)),
       rank: newRank,
       lastActive: serverTimestamp()
     });

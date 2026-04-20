@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { auth, db, getActivityLogs } from '../services/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   LineChart, 
   Line, 
@@ -35,13 +35,46 @@ export function Profile() {
       if (!user) return;
       
       try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          setProfile(userDoc.data());
+        const userRef = doc(db, "users", user.uid);
+        let userDataResult;
+        
+        try {
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            userDataResult = userDoc.data();
+            setProfile(userDataResult);
+          } else {
+            // AUTO-CREATE PROFILE IF MISSING
+            const userData = {
+              userId: user.uid,
+              displayName: user.displayName || 'Learner',
+              email: user.email || '',
+              photoURL: user.photoURL || '',
+              totalPoints: 0,
+              rank: "Novice",
+              rating: 1000,
+              streak: 0,
+              currentQuizIndex: 0,
+              currentQuizScore: 0,
+              lastActive: serverTimestamp(),
+              createdAt: serverTimestamp()
+            };
+            await setDoc(userRef, userData);
+            userDataResult = userData;
+            setProfile(userDataResult);
+          }
+        } catch (getSetError: any) {
+          console.error("Profile Document Error (Get/Set):", getSetError.message);
+          throw getSetError;
         }
         
-        const activity = await getActivityLogs(user.uid);
-        setLogs(activity);
+        try {
+          const activity = await getActivityLogs(user.uid);
+          setLogs(activity);
+        } catch (logError: any) {
+          console.error("Profile Logs Error:", logError.message);
+          // Don't throw for log errors, just continue
+        }
       } catch (error) {
         console.error("Profile fetch error:", error);
       } finally {
@@ -100,7 +133,9 @@ export function Profile() {
               </div>
            </div>
            <p className="text-muted-foreground text-sm max-w-md">
-             Active learner since {new Date(profile.createdAt?.seconds * 1000).toLocaleDateString()}
+             Active learner since {profile.createdAt?.seconds 
+                ? new Date(profile.createdAt.seconds * 1000).toLocaleDateString() 
+                : new Date().toLocaleDateString()}
            </p>
         </div>
 

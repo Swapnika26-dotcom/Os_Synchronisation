@@ -7,7 +7,8 @@ import {
   BarChart3, 
   HelpCircle,
   User,
-  LogOut
+  LogOut,
+  Code2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../services/firebase';
@@ -27,6 +28,7 @@ export function Navbar({ activeTab, setActiveTab, theme, toggleTheme }: NavbarPr
     { id: 'home', label: 'Home', icon: Cpu },
     { id: 'concepts', label: 'Concepts', icon: BookOpen },
     { id: 'simulator', label: 'Simulator', icon: Play },
+    { id: 'playground', label: 'Playground', icon: Code2 },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'quiz', label: 'Quiz', icon: HelpCircle },
     { id: 'profile', label: 'Profile', icon: User },
