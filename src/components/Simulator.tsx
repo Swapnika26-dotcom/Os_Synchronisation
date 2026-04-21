@@ -15,11 +15,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AlgorithmType, SimulationState, Process } from '../types';
 import { COLORS, ALGORITHMS } from '../constants';
-import { auth, updateUserProgress } from '../services/firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
 
 export function Simulator() {
-  const [user] = useAuthState(auth);
   const [algo, setAlgo] = useState<AlgorithmType>('mutex');
   const [processCount, setProcessCount] = useState(4);
   const [burstTime, setBurstTime] = useState(3);
@@ -233,12 +230,6 @@ export function Simulator() {
     setState(prev => ({ ...prev, isPaused: !prev.isPaused }));
     addLog(state.isPaused ? "Simulation resumed." : "Simulation paused.");
   };
-
-  useEffect(() => {
-    if (state.isFinished && user) {
-      updateUserProgress(user.uid, 50, "simulator");
-    }
-  }, [state.isFinished, user]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 py-6">

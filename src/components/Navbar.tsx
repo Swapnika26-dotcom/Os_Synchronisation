@@ -6,13 +6,9 @@ import {
   Play, 
   BarChart3, 
   HelpCircle,
-  User,
-  LogOut,
   Code2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { auth } from '../services/firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
 
 interface NavbarProps {
   activeTab: string;
@@ -22,8 +18,6 @@ interface NavbarProps {
 }
 
 export function Navbar({ activeTab, setActiveTab, theme, toggleTheme }: NavbarProps) {
-  const [user] = useAuthState(auth);
-  
   const tabs = [
     { id: 'home', label: 'Home', icon: Cpu },
     { id: 'concepts', label: 'Concepts', icon: BookOpen },
@@ -31,7 +25,6 @@ export function Navbar({ activeTab, setActiveTab, theme, toggleTheme }: NavbarPr
     { id: 'playground', label: 'Playground', icon: Code2 },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'quiz', label: 'Quiz', icon: HelpCircle },
-    { id: 'profile', label: 'Profile', icon: User },
   ];
 
   return (
@@ -68,24 +61,6 @@ export function Navbar({ activeTab, setActiveTab, theme, toggleTheme }: NavbarPr
         </div>
 
         <div className="flex items-center gap-2">
-          {user && (
-            <div className="flex items-center gap-2 pr-2 border-r border-border mr-2 hidden sm:flex">
-               <img 
-                 src={user.photoURL || ''} 
-                 alt="User" 
-                 className="w-8 h-8 rounded-full border border-primary/20 cursor-pointer"
-                 onClick={() => setActiveTab('profile')}
-                 referrerPolicy="no-referrer"
-               />
-               <button 
-                 onClick={() => auth.signOut()}
-                 className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
-                 title="Logout"
-               >
-                 <LogOut className="w-4 h-4" />
-               </button>
-            </div>
-          )}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-xl bg-secondary border border-border hover:bg-accent transition-colors"

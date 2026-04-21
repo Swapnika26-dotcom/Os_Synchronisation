@@ -125,6 +125,7 @@ writer():
 ];
 
 export const COLORS = [
+  '#FBC3C1', // primary pink/peach
   '#3b82f6', // blue
   '#ec4899', // pink
   '#10b981', // emerald
@@ -132,5 +133,4 @@ export const COLORS = [
   '#8b5cf6', // violet
   '#f97316', // orange
   '#ef4444', // red
-  '#06b6d4', // cyan
 ];

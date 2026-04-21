@@ -15,42 +15,15 @@ import {
   Info
 } from 'lucide-react';
 
-import { auth, db, updateUserProgress, saveQuizProgress } from '../services/firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { Terminal } from './Terminal';
 
 export function Quiz() {
-  const [user] = useAuthState(auth);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(user ? true : false);
-
-  // Resume progress from Firestore
-  useEffect(() => {
-    async function resumeProgress() {
-      if (!user) return;
-      try {
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          if (data.currentQuizIndex && data.currentQuizIndex < QUIZ_QUESTIONS.length) {
-            setCurrentIdx(data.currentQuizIndex);
-            setScore(data.currentQuizScore || 0);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to resume progress:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    resumeProgress();
-  }, [user]);
+  const [loading, setLoading] = useState(false);
 
   const handleAnswer = (optionIdx: number) => {
     if (selectedOption !== null) return;
@@ -70,17 +43,8 @@ export function Quiz() {
       setCurrentIdx(nextIdx);
       setSelectedOption(null);
       setIsCorrect(null);
-      // Persist progress to DB
-      if (user) {
-        await saveQuizProgress(user.uid, nextIdx, score);
-      }
     } else {
       setShowResult(true);
-      // Final points update
-      if (user && score > 0) {
-        await updateUserProgress(user.uid, score, "quiz");
-        await saveQuizProgress(user.uid, 0, 0); // Reset progress after completion
-      }
     }
   };
 
@@ -90,9 +54,6 @@ export function Quiz() {
       setCurrentIdx(nextIdx);
       setSelectedOption(null);
       setIsCorrect(null);
-      if (user) {
-        await saveQuizProgress(user.uid, nextIdx, score);
-      }
     } else {
       setShowResult(true);
     }
@@ -104,9 +65,6 @@ export function Quiz() {
     setShowResult(false);
     setSelectedOption(null);
     setIsCorrect(null);
-    if (user) {
-      await saveQuizProgress(user.uid, 0, 0);
-    }
   };
 
   const handleProgramRun = (code: string) => {

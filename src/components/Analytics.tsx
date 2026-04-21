@@ -80,7 +80,7 @@ export function Analytics() {
                   cursor={{ fill: 'var(--accent)', opacity: 0.4 }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                <Bar name="Throughput" dataKey="throughput" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar name="Throughput" dataKey="throughput" fill="#FBC3C1" radius={[4, 4, 0, 0]} barSize={24} />
                 <Bar name="Wait Time" dataKey="waitTime" fill="#ec4899" radius={[4, 4, 0, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
@@ -96,7 +96,7 @@ export function Analytics() {
                 <PolarGrid stroke="currentColor" opacity={0.1} />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 600 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar name="Mutex" dataKey="Mutex" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
+                <Radar name="Mutex" dataKey="Mutex" stroke="#FBC3C1" fill="#FBC3C1" fillOpacity={0.5} />
                 <Radar name="Peterson" dataKey="Peterson" stroke="#10b981" fill="#10b981" fillOpacity={0.5} />
                 <Radar name="Semaphore" dataKey="Semaphore" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
@@ -118,7 +118,7 @@ export function Analytics() {
                 <Tooltip contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', borderRadius: '12px' }} />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                 <Line type="monotone" dataKey="overhead" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 6, fill: "#8b5cf6" }} activeDot={{ r: 8 }} />
-                <Line type="monotone" dataKey="fairness" stroke="#f97316" strokeWidth={3} dot={{ r: 6, fill: "#f97316" }} activeDot={{ r: 8 }} />
+                <Line type="monotone" dataKey="fairness" stroke="#FBC3C1" strokeWidth={3} dot={{ r: 6, fill: "#FBC3C1" }} activeDot={{ r: 8 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
